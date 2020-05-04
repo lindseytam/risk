@@ -2,6 +2,7 @@ import os
 import random
 from collections import namedtuple
 
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.path import Path
@@ -61,7 +62,8 @@ class Board(object):
             generator: Generator of Territories.
         """
         neighbor_ids = risk.definitions.territory_neighbors[territory_id]
-        return (t for t in self.data if t.territory_id in neighbor_ids)
+        return neighbor_ids
+        #return (t for t in self.data if t.territory_id in neighbor_ids)
 
     def hostile_neighbors(self, territory_id):
         """
@@ -74,9 +76,15 @@ class Board(object):
         Returns:
             generator: Generator of Territories.
         """
+        hostile_neighbors=[]
         player_id = self.owner(territory_id)
         neighbor_ids = risk.definitions.territory_neighbors[territory_id]
-        return (t for t in self.data if (t.player_id != player_id and t.territory_id in neighbor_ids))
+        for neighbor in neighbor_ids:
+            # print("territory_id=", territory_id, "neighbor_ids=", neighbor_ids, "neighbor=", neighbor, "self.owner(neighbor)=", self.owner(neighbor), "player_id=", player_id)
+            if self.owner(neighbor) != player_id:
+                hostile_neighbors.append(neighbor)
+        return hostile_neighbors
+        #return (t for t in self.data if (t.player_id != player_id and t.territory_id in neighbor_ids))
 
     def friendly_neighbors(self, territory_id):
         """
@@ -89,9 +97,17 @@ class Board(object):
         Returns:
             generator: Generator of tuples of the form (territory_id, player_id, armies).
         """
+        friendlies = []
         player_id = self.owner(territory_id)
         neighbor_ids = risk.definitions.territory_neighbors[territory_id]
-        return (t for t in self.data if (t.player_id == player_id and t.territory_id in neighbor_ids))
+
+        player_id = self.owner(territory_id)
+        neighbor_ids = risk.definitions.territory_neighbors[territory_id]
+        for neighbor in neighbor_ids:
+            if self.owner(neighbor) == player_id:
+                friendlies.append(neighbor)
+        return friendlies
+        # return (t for t in self.data if (t.player_id == player_id and t.territory_id in neighbor_ids))
 
     
     # ================== #
@@ -103,7 +119,7 @@ class Board(object):
         A path is list of territories satisfying two conditions:
         1. For all territories V in the list (except the last one), the next territory W is in the neighbors if V.
         2. No territory is repeated multiple times.
-        Valid paths can be of any length (including 0 and 1).
+        3. Valid paths can be of any length (including 0 and 1).
 
         Args:
             path ([int]): a list of territory_ids which represent the path
@@ -111,6 +127,26 @@ class Board(object):
         Returns:
             bool: True if the input path is valid
         '''
+
+        # checks for condition 3
+        if len(path) == 1 or len(path) == 0:
+
+            return True
+
+        # checks for condition 2
+        elif len(path) != len(set(path)):
+
+            return False
+
+        else:
+
+            for i in range(len(path)-1):
+
+                cur_country=path[i]
+                next_country=path[i+1]
+                if next_country not in risk.definitions.territory_neighbors[cur_country]:
+                    return False
+            return True
 
     
     def is_valid_attack_path(self, path):
@@ -120,9 +156,9 @@ class Board(object):
         they must move through enemy territories.
         All valid attacks, therefore, will follow a path of starting on one player's territory and moving trough enemy territories.
 
-        Formally, an attack path is a valid path satisfying the following two additional properties:
+        0. Formally, an attack path is a valid path satisfying the following two additional properties:
         1. An attack path must contain at least two territories;
-        1. If the first territory is owned by player A, then no other territories in the path are also owned by A.
+        2. If the first territory is owned by player A, then no other territories in the path are also owned by A.
 
         Args:
             path ([int]): a list of territory_ids which represent the path
@@ -130,6 +166,28 @@ class Board(object):
         Returns:
             bool: True if the path is an attack path
         '''
+
+        # Takes care of criteria 0 and 1
+
+        # print("Territory=", Territory.player_id)
+        if len(path) < 2 or not self.is_valid_path(path):
+            print("in if 2")
+            return False
+
+        else:
+            player_id = self.owner(path[0])
+            # print("path[0]-",path[0])
+            # hostiles = self.hostile_neighbors(player_id, path[0])
+            # print("hostiles=", hostiles)
+            for country in path:
+                if path[0] != country and self.owner(country) == player_id:
+                    return False
+                # hostiles = self.hostile_neighbors(player_id, country)
+                # print("hostiles=", hostiles)
+                # if country != path[0] and country != path[-1] and country not in hostiles:
+                #     return False
+            return True
+
 
 
     def cost_of_attack_path(self, path):
@@ -141,8 +199,10 @@ class Board(object):
             path ([int]): a list of territory_ids which must be a valid attack path
 
         Returns:
-            bool: the number of enemy armies in the path
+            int: the number of enemy armies in the path
         '''
+
+
 
 
     def shortest_path(self, source, target):
@@ -627,3 +687,39 @@ class Board(object):
             generator: Generator of Territories.
         """
         return (t for t in self.data if (t.player_id == player_id and t.armies > 1))
+
+
+from risk.board import Board,Territory
+import copy
+
+# define boards for the tests
+# HINT: I recommend you plot these boards
+board0 = Board([Territory(territory_id=i, player_id=1, armies=i%5+1) for i in range(42)])
+
+board1 = copy.deepcopy(board0)
+board1.set_owner(3,0)
+board1.set_armies(3,500)
+board1.set_armies(4,500)
+board1.set_armies(34,500)
+board1.set_armies(39,500)
+board1.set_armies(35,500)
+
+board2 = copy.deepcopy(board1)
+board2.set_owner(34, 0)
+board2.set_armies(34,1)
+board2.set_owner(35, 0)
+board2.set_armies(35,1)
+board2.set_owner(39, 0)
+board2.set_armies(39,1)
+
+board3 = copy.deepcopy(board2)
+board3.set_owner(34, 1)
+
+board4 = copy.deepcopy(board2)
+board4.set_owner(4, 0)
+board4.set_armies(4, 1)
+board4.set_owner(1, 0)
+
+board5 = Board([Territory(territory_id=i, player_id=i%5, armies=i%5+1) for i in range(42)])
+# print(board1.is_valid_path([3,28]))
+print(board1.cost_of_attack_path([3,28]) == 4)
