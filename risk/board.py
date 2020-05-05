@@ -8,6 +8,7 @@ import matplotlib.patches as patches
 from matplotlib.path import Path
 
 import risk.definitions
+from collections import deque
 
 Territory = namedtuple('Territory', ['territory_id', 'player_id', 'armies'])
 Move = namedtuple('Attack', ['from_territory_id', 'from_armies', 'to_territory_id', 'to_player_id', 'to_armies'])
@@ -214,13 +215,90 @@ class Board(object):
             [int]: a valid path between source and target that has minimum length; this path is guaranteed to exist
         '''
 
+        stack=[]
+        stack.append(source)
+        queue = deque([])
+        queue.append(stack)
+
+        board=risk.definitions.territory_names
+        board=list(board.keys())
+
+        if source==target:
+            return stack
+
+        while queue:
+            cur_territory = queue.popleft()
+
+            board_info = [territory for territory in board if territory in self.neighbors(cur_territory[-1])]
+            for territory in board_info:
+                if territory == target:
+                    cur_territory.append(territory)
+                    # poss.append(cur_territory)
+                    # continue
+                    return cur_territory
+                copy_stack = copy.deepcopy(cur_territory)
+                copy_stack.append(territory)
+                queue.append(copy_stack)
+                board.remove(territory)
+
+    def _fortify_path(self, source, target):
+        '''
+        This function uses BFS to find the shortest path between source and target.
+        This function does not take into account who owns the territories or how many armies are on the territories,
+        and so a shortest path is simply a valid path with the smallest number of territories visited.
+        This path is not necessarily unique,
+        and when multiple shortest paths exist,
+        then this function can return any of those paths.
+
+        Args:
+            source (int): a territory_id that is the source location
+            target (int): a territory_id that is the target location
+
+        Returns:
+            [int]: a valid path between source and target that has minimum length; this path is guaranteed to exist
+        '''
+        poss=[]
+        stack = []
+        stack.append(source)
+        queue = deque([])
+        queue.append(stack)
+
+        board = risk.definitions.territory_names
+        board = list(board.keys())
+
+        if source == target:
+            return stack
+
+        while queue:
+            cur_territory = queue.popleft()
+
+            board_info = [territory for territory in board if territory in self.neighbors(cur_territory[-1])]
+            for territory in board_info:
+                if territory == target:
+                    cur_territory.append(territory)
+                    poss.append(cur_territory)
+                    continue
+                    # return cur_territory
+                copy_stack = copy.deepcopy(cur_territory)
+                copy_stack.append(territory)
+                queue.append(copy_stack)
+                board.remove(territory)
+        return poss
+        # min_list_num=len(poss[0])
+        # min_list=[]
+        # for pos in poss:
+        #     if len(pos) <= min_list_num:
+        #         min_list.append(pos)
+        # return min_list
 
 
-    def can_fortify(self, source, target):
+
+    def _can_fortify(self, paths, source, target):
         '''
         At the end of a turn, a player may choose to fortify a target territory by moving armies from a source territory.
         In order for this to be a valid move,
-        there must be a valid path between the source and target territories that is owned entirely by the same player.
+        there must be
+         1. a valid path between the source and target territories that is owned entirely by the same player.
 
         Args:
             source (int): the source territory_id
@@ -229,6 +307,46 @@ class Board(object):
         Returns:
             bool: True if reinforcing the target from the source territory is a valid move
         '''
+
+        # print("self._fortify_path(source, target)=", self._fortify_path(source, target))
+
+        # if self.shortest_path(source, target) == None:
+        #     return False
+        #
+        # else:
+        #     player_id=self.owner(source)
+        #     # paths=self._fortify_path(source, target)
+        #     print("paths=", paths)
+        #
+        #     for path in paths:
+        #
+        #         if self.owner(path) != player_id:
+        #             return False
+        #     return True
+
+
+        player_id=self.owner(source)
+
+        for path in paths:
+
+            if self.owner(path) != player_id:
+                return False
+        return True
+
+
+
+    def can_fortify(self, source, target):
+
+        if self.shortest_path(source, target) == None:
+            return False
+        paths = self._fortify_path(source, target)
+        print("paths=", paths)
+        for path in paths:
+            if self._can_fortify(path, source, target):
+                return True
+        return False
+
+
 
 
     def cheapest_attack_path(self, source, target):
@@ -255,6 +373,18 @@ class Board(object):
         Returns:
             bool: True if a valid attack path exists between source and target; else False
         '''
+        if self.shortest_path(source, target) == None:
+            return False
+
+        else:
+            player_id = self.owner(source)
+            paths = self.shortest_path(source, target)
+
+            for path in paths:
+                print("player_id", player_id, "path=", path, "self.owner(path)=", self.owner(path), "paths=", paths)
+                if path != paths[0] and self.owner(path) == player_id:
+                    return False
+            return True
 
 
     # ======================= #
@@ -714,5 +844,30 @@ board4.set_armies(4, 1)
 board4.set_owner(1, 0)
 
 board5 = Board([Territory(territory_id=i, player_id=i%5, armies=i%5+1) for i in range(42)])
-# print(board1.is_valid_path([3,28]))
-print(board5.cost_of_attack_path([3, 4, 24, 11, 21, 0, 6]))
+
+# assert not board1.can_fortify(3,10)
+# assert not board2.can_fortify(3,39)
+# assert board2.can_fortify(39,35)
+# # assert board2.can_fortify(25,38)
+# assert not board5.can_fortify(25,38)
+
+
+
+
+
+# assert board1.can_attack(3,24)
+# assert board2.can_attack(3,24)
+# assert board3.can_attack(3,24)
+# assert not board4.can_attack(3,24)
+# assert board5.can_attack(3,24)
+# assert board5.can_attack(30,24)
+
+# print(board5.can_attack(3,6))
+# assert board5.can_attack(3,6)
+#
+# assert not board5.can_attack(3,18)
+# assert board5.can_attack(38,1)
+# assert board5.can_attack(3,2)
+# assert not board5.can_attack(3,3)
+
+
