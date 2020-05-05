@@ -98,8 +98,6 @@ class Board(object):
             generator: Generator of tuples of the form (territory_id, player_id, armies).
         """
         friendlies = []
-        player_id = self.owner(territory_id)
-        neighbor_ids = risk.definitions.territory_neighbors[territory_id]
 
         player_id = self.owner(territory_id)
         neighbor_ids = risk.definitions.territory_neighbors[territory_id]
@@ -135,11 +133,9 @@ class Board(object):
 
         # checks for condition 2
         elif len(path) != len(set(path)):
-
             return False
 
         else:
-
             for i in range(len(path)-1):
 
                 cur_country=path[i]
@@ -167,25 +163,14 @@ class Board(object):
             bool: True if the path is an attack path
         '''
 
-        # Takes care of criteria 0 and 1
-
-        # print("Territory=", Territory.player_id)
         if len(path) < 2 or not self.is_valid_path(path):
-            print("in if 2")
             return False
 
         else:
             player_id = self.owner(path[0])
-            # print("path[0]-",path[0])
-            # hostiles = self.hostile_neighbors(player_id, path[0])
-            # print("hostiles=", hostiles)
             for country in path:
                 if path[0] != country and self.owner(country) == player_id:
                     return False
-                # hostiles = self.hostile_neighbors(player_id, country)
-                # print("hostiles=", hostiles)
-                # if country != path[0] and country != path[-1] and country not in hostiles:
-                #     return False
             return True
 
 
@@ -201,6 +186,12 @@ class Board(object):
         Returns:
             int: the number of enemy armies in the path
         '''
+        cost=0
+        for country in path:
+            if country == path[0]:
+                continue
+            cost+=self.armies(country)
+        return cost
 
 
 
@@ -221,6 +212,7 @@ class Board(object):
         Returns:
             [int]: a valid path between source and target that has minimum length; this path is guaranteed to exist
         '''
+
 
 
     def can_fortify(self, source, target):
@@ -722,4 +714,4 @@ board4.set_owner(1, 0)
 
 board5 = Board([Territory(territory_id=i, player_id=i%5, armies=i%5+1) for i in range(42)])
 # print(board1.is_valid_path([3,28]))
-print(board1.cost_of_attack_path([3,28]) == 4)
+print(board5.cost_of_attack_path([3, 4, 24, 11, 21, 0, 6]))
