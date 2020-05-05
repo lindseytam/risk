@@ -186,6 +186,7 @@ class Board(object):
         Returns:
             int: the number of enemy armies in the path
         '''
+
         cost=0
         for country in path:
             if country == path[0]:
