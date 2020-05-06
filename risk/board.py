@@ -10,6 +10,7 @@ from matplotlib.path import Path
 import risk.definitions
 from collections import deque
 from queue import PriorityQueue
+import heapdict
 
 Territory = namedtuple('Territory', ['territory_id', 'player_id', 'armies'])
 Move = namedtuple('Attack', ['from_territory_id', 'from_armies', 'to_territory_id', 'to_player_id', 'to_armies'])
@@ -232,8 +233,6 @@ class Board(object):
             for territory in board_info:
                 if territory == target:
                     cur_territory.append(territory)
-                    # poss.append(cur_territory)
-                    # continue
                     return cur_territory
                 copy_stack = copy.deepcopy(cur_territory)
                 copy_stack.append(territory)
@@ -263,8 +262,6 @@ class Board(object):
             for territory in board_info:
                 if territory == target:
                     cur_territory.append(territory)
-                    # poss.append(cur_territory)
-                    # continue
                     return cur_territory
                 copy_stack = copy.deepcopy(cur_territory)
                 copy_stack.append(territory)
@@ -294,33 +291,119 @@ class Board(object):
             [int]: a list of territory_ids representing the valid attack path; if no path exists, then it returns None instead
         '''
 
-        # key is territory and value is path
+        if not self.can_attack(source, target):
+            return None
+        # print("path=", self.shortest_path(source, target))
+
+        # territories={}
+        # territories[source]=[source]
+        # pq = heapdict.heapdict()
+        # pq[source]=0
+        # visited=[source]
+        #
+        # while pq:
+        #
+        #     (cur_ter, cur_ter_priority)=pq.popitem()
+        #     # print("cur_ter=", cur_ter)
+        #     print((cur_ter, cur_ter_priority), "territories[cur_ter]=", territories)
+        #     if cur_ter==target:
+        #         return territories[cur_ter]
+        #
+        #     board_info = [country for country in self.neighbors(cur_ter) if country not in visited]
+        #     for territory in board_info:
+        #         copy_path = copy.deepcopy(territories[cur_ter])
+        #         # if cur_ter in territories:
+        #         #     copy_path=copy.deepcopy(territories[ter])
+        #         # else:
+        #         #     copy_path=[]
+        #         copy_path.append(territory)
+        #         priority=self.armies(territory)+cur_ter_priority
+        #         if territory not in pq:
+        #             # copy_path.append(territory)
+        #             territories[territory]=copy_path
+        #             pq[territory]= self.armies(territory)
+        #         elif priority < pq[territory]:
+        #             # copy_path.append(territory)
+        #             territories[territory] = copy_path
+        #             pq[territory] = priority
+        #     visited.append(cur_ter)
+
         territories={}
         territories[source]=[source]
-        pq = PriorityQueue()
-        pq.put(source, 0)
+        pq = heapdict.heapdict()
+
+        pq[source]=0
+        # print("OG_PQ=", pq[source])
         visited=[source]
+        player_id=self.owner(source)
 
         while pq:
-            cur_ter=pq.get()
-            # print("cur_ter=", cur_ter)
-            if cur_ter==target:
-                return territories[cur_ter]
-            self.neighbors(cur_ter)
-            territorys=list(set(self.neighbors(cur_ter)) - set(visited))
-            print("territorys=", territorys)
-            for territory in territorys:
-                copy_path=copy.deepcopy(territories[cur_ter])
+
+
+            # cur_territory = queue.popleft()
+            #
+            # board_info = [territory for territory in board if territory in self.neighbors(cur_territory[-1])]
+            # for territory in board_info:
+            #     if territory == target:
+            #         cur_territory.append(territory)
+            #         return cur_territory
+            #     copy_stack = copy.deepcopy(cur_territory)
+            #     copy_stack.append(territory)
+            #     queue.append(copy_stack)
+            #     board.remove(territory)
+
+
+
+            h=[3, 3, 28, 37, 5, 10, 40, 2, 26, 1, 27, 13, 14, 30, 25, 12, 19]
+            n=len(h)+3
+            if len(visited)==n:
+                print("CURE_TER=", cur_ter)
+            (cur_ter, cur_ter_priority)=pq.popitem()
+            board_info = [country for country in self.neighbors(cur_ter) if (country not in visited and self.owner(country)!=player_id)]
+            if cur_ter==19 or cur_ter==41 or cur_ter==32:
+                print("board_info=", board_info, "visited=", visited, "cur_ter=", cur_ter)
+            # print("territories=", territories)
+            for territory in board_info:
+
+                # print("pq=")
+                if territory == target:
+                    # cur_ter.append(territory)
+                    path=territories[cur_ter]
+                    path.append(territory)
+                    return path
+                copy_path = copy.deepcopy(territories[cur_ter])
+                # print("copy_path=", copy_path)
                 copy_path.append(territory)
-                # priority=
-                # pq.put(territory, priority)
-                return
+                # pq.append(copy_path)
+                priority = self.armies(territory) + cur_ter_priority
+                # print("priority=", priority)
+                if territory not in pq:
+                    # copy_path.append(territory)
+                    territories[territory]=copy_path
+                    pq[territory]= cur_ter_priority+self.armies(territory)
+
+                    if cur_ter == 19 or cur_ter == 41 or cur_ter==32:
+                        print("ONE=", "pq[territory]=", pq[territory], "territory=", territory, "cur_ter=", cur_ter)
+                elif priority <= pq[territory]:
+                    # print("HERE")
+                    print("TWO=","priority=", priority, "pq[territory]=", pq[territory])
+                    # copy_path.append(territory)
+                    territories[territory] = copy_path
+                    pq[territory] = priority
+                if (cur_ter == 41 or cur_ter==32) and territory in pq:
+                    print("THREE=", "pq[territory]=", pq[territory], "priority=", priority, "territory=", territory)
+            visited.append(cur_ter)
+
+                # visited.append(cur_ter)
+
+
+
 
     def _attack(self, source, target):
 
         stack = []
         stack.append(source)
-        queue = deque([])
+        queue=deque([])
         queue.append(stack)
 
         board = risk.definitions.territory_names
@@ -332,7 +415,6 @@ class Board(object):
         while queue:
             cur_territory = queue.popleft()
             player_id = self.owner(source)
-            neighbor = []
             adj = self.neighbors(cur_territory[-1])
             neighbor = [country for country in adj if self.owner(country) != player_id]
             board_info = [territory for territory in board if territory in neighbor]
@@ -354,21 +436,10 @@ class Board(object):
         Returns:
             bool: True if a valid attack path exists between source and target; else False
         '''
-        print("path=", self.shortest_path(source, target))
 
         if self._attack(source, target) == None or source==target:
             return False
         return True
-        # if self.shortest_path(source, target) == None:
-        #     return False
-        #
-        # paths = self._all_paths(source, target)
-        # print("paths=", paths)
-        # for path in paths:
-        #     print("path1=", path)
-        #     if self._can_attack(path, source, target):
-        #         return True
-        # return False
 
 
     # ======================= #
@@ -829,31 +900,17 @@ board4.set_owner(1, 0)
 
 board5 = Board([Territory(territory_id=i, player_id=i%5, armies=i%5+1) for i in range(42)])
 
+# print("cheapest_path=", board1.cheapest_attack_path(3,24))
 
-
-
-assert board1.can_attack(3,24)
-assert board2.can_attack(3,24)
-assert board3.can_attack(3,24)
-assert not board4.can_attack(3,24)
-assert board5.can_attack(3,24)
-assert board5.can_attack(30,24)
-assert board5.can_attack(3,6)
-assert not board5.can_attack(3,18)
-assert board5.can_attack(38,1)
-assert board5.can_attack(3,2)
-assert not board5.can_attack(3,3)
-
-
-# print(board1.cheapest_attack_path(3,24))
-# assert board1.cost_of_attack_path(board1.cheapest_attack_path(3,24)) == 34
-# assert board2.cost_of_attack_path(board2.cheapest_attack_path(3,24)) == 34
-# assert board3.cost_of_attack_path(board3.cheapest_attack_path(3,24)) == 31
-# assert board4.cheapest_attack_path(3,24) is None
-# assert board5.cost_of_attack_path(board5.cheapest_attack_path(3,24)) == 10
-# assert board5.cost_of_attack_path(board5.cheapest_attack_path(30,24)) == 13
-# assert board5.cost_of_attack_path(board5.cheapest_attack_path(3,6)) == 17
-# assert board5.cheapest_attack_path(3,18) is None
-# assert board5.cost_of_attack_path(board5.cheapest_attack_path(38,1)) == 16
-# assert board5.cost_of_attack_path(board5.cheapest_attack_path(3,2)) == 13
-# assert board5.cheapest_attack_path(3,3) is None
+# print("cheapest_path=", board1.cost_of_attack_path(board1.cheapest_attack_path(3,24)))
+assert board1.cost_of_attack_path(board1.cheapest_attack_path(3,24)) == 34
+assert board2.cost_of_attack_path(board2.cheapest_attack_path(3,24)) == 34
+assert board3.cost_of_attack_path(board3.cheapest_attack_path(3,24)) == 31
+assert board4.cheapest_attack_path(3,24) is None
+assert board5.cost_of_attack_path(board5.cheapest_attack_path(3,24)) == 10
+assert board5.cost_of_attack_path(board5.cheapest_attack_path(30,24)) == 13
+assert board5.cost_of_attack_path(board5.cheapest_attack_path(3,6)) == 17
+assert board5.cheapest_attack_path(3,18) is None
+assert board5.cost_of_attack_path(board5.cheapest_attack_path(38,1)) == 16
+assert board5.cost_of_attack_path(board5.cheapest_attack_path(3,2)) == 13
+assert board5.cheapest_attack_path(3,3) is None
