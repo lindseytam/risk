@@ -9,6 +9,7 @@ from matplotlib.path import Path
 
 import risk.definitions
 from collections import deque
+from queue import PriorityQueue
 
 Territory = namedtuple('Territory', ['territory_id', 'player_id', 'armies'])
 Move = namedtuple('Attack', ['from_territory_id', 'from_armies', 'to_territory_id', 'to_player_id', 'to_armies'])
@@ -81,11 +82,9 @@ class Board(object):
         player_id = self.owner(territory_id)
         neighbor_ids = risk.definitions.territory_neighbors[territory_id]
         for neighbor in neighbor_ids:
-            # print("territory_id=", territory_id, "neighbor_ids=", neighbor_ids, "neighbor=", neighbor, "self.owner(neighbor)=", self.owner(neighbor), "player_id=", player_id)
             if self.owner(neighbor) != player_id:
                 hostile_neighbors.append(neighbor)
         return hostile_neighbors
-        #return (t for t in self.data if (t.player_id != player_id and t.territory_id in neighbor_ids))
 
     def friendly_neighbors(self, territory_id):
         """
@@ -241,23 +240,67 @@ class Board(object):
                 queue.append(copy_stack)
                 board.remove(territory)
 
-    def _fortify_path(self, source, target):
-        '''
-        This function uses BFS to find the shortest path between source and target.
-        This function does not take into account who owns the territories or how many armies are on the territories,
-        and so a shortest path is simply a valid path with the smallest number of territories visited.
-        This path is not necessarily unique,
-        and when multiple shortest paths exist,
-        then this function can return any of those paths.
+    def _fortify(self, source, target):
 
-        Args:
-            source (int): a territory_id that is the source location
-            target (int): a territory_id that is the target location
+        # key is territory, value is path
+        # paths_dict={source: [source]}
+        # queue=deque([])
+        # queue.append(source)
+        # visited=[source]
+        #
+        # while queue:
+        #     cur_ter=queue.popleft()
+        #     if cur_ter==target:
+        #         return paths_dict[cur_ter]
+        #     territories = list(set(self.neighbors(cur_ter)) - set(visited))
+        #     print("territories=", territories, "visited=", visited, "self.neighbors(cur_ter)=", self.neighbors(cur_ter))
+        #     for territory in territories:
+        #         if cur_ter in paths_dict:
+        #             copy_path=copy.deepcopy(paths_dict[cur_ter])
+        #         else:
+        #             copy_path=[]
+        #         copy_path.append(territory)
+        #         value=copy_path
+        #         paths_dict[cur_ter]=value
+        #         queue.append(territory)
+        #     visited.append(cur_ter)
 
-        Returns:
-            [int]: a valid path between source and target that has minimum length; this path is guaranteed to exist
-        '''
-        poss=[]
+
+        # stack = []
+        # stack.append(source)
+        # queue = deque([])
+        # queue.append(stack)
+        #
+        # board = risk.definitions.territory_names
+        # board = list(board.keys())
+        #
+        # if source == target:
+        #     return stack
+        #
+        # while queue:
+        #     cur_territory = queue.popleft()
+        #     adj=self.neighbors(cur_territory[-1])
+        #     player_id=self.owner(cur_territory[-1])
+        #     board_inf=[]
+        #     # print("adj=", adj)
+        #     for country in adj:
+        #         if self.owner(country) == player_id:
+        #             board_inf.append(country)
+        #     # print("board_inf=", board_inf)
+        #     board_info = [territory for territory in board if territory in board_inf]
+        #     # if not board_info:
+        #     #     return None
+        #     print("board_info=", board_info)
+        #     for territory in board_info:
+        #         if territory == target:
+        #             cur_territory.append(territory)
+        #             return cur_territory
+        #         copy_stack = copy.deepcopy(cur_territory)
+        #         copy_stack.append(territory)
+        #         queue.append(copy_stack)
+        #         board.remove(territory)
+        # return None
+
         stack = []
         stack.append(source)
         queue = deque([])
@@ -271,27 +314,21 @@ class Board(object):
 
         while queue:
             cur_territory = queue.popleft()
-
-            board_info = [territory for territory in board if territory in self.neighbors(cur_territory[-1])]
+            player_id=self.owner(cur_territory[-1])
+            neighbor=[]
+            adj=self.neighbors(cur_territory[-1])
+            neighbor=[country for country in adj if self.owner(country)==player_id]
+            board_info = [territory for territory in board if territory in neighbor]
             for territory in board_info:
                 if territory == target:
                     cur_territory.append(territory)
-                    poss.append(cur_territory)
-                    continue
-                    # return cur_territory
+                    # poss.append(cur_territory)
+                    # continue
+                    return cur_territory
                 copy_stack = copy.deepcopy(cur_territory)
                 copy_stack.append(territory)
                 queue.append(copy_stack)
                 board.remove(territory)
-        return poss
-        # min_list_num=len(poss[0])
-        # min_list=[]
-        # for pos in poss:
-        #     if len(pos) <= min_list_num:
-        #         min_list.append(pos)
-        # return min_list
-
-
 
     def _can_fortify(self, paths, source, target):
         '''
@@ -308,27 +345,11 @@ class Board(object):
             bool: True if reinforcing the target from the source territory is a valid move
         '''
 
-        # print("self._fortify_path(source, target)=", self._fortify_path(source, target))
-
-        # if self.shortest_path(source, target) == None:
-        #     return False
-        #
-        # else:
-        #     player_id=self.owner(source)
-        #     # paths=self._fortify_path(source, target)
-        #     print("paths=", paths)
-        #
-        #     for path in paths:
-        #
-        #         if self.owner(path) != player_id:
-        #             return False
-        #     return True
-
 
         player_id=self.owner(source)
 
         for path in paths:
-
+            print("player_id=", player_id, "path=", path, "self.owner(path)=", self.owner(path))
             if self.owner(path) != player_id:
                 return False
         return True
@@ -337,14 +358,27 @@ class Board(object):
 
     def can_fortify(self, source, target):
 
-        if self.shortest_path(source, target) == None:
+        # if self.shortest_path(source, target) == None:
+        #     return False
+        #
+        # paths = self._all_paths(source, target)
+        #
+        # for path in paths:
+        #     if self._can_fortify(path, source, target):
+        #         return True
+        # return False
+        print("path=", self.shortest_path(source, target))
+        if self._fortify(source, target) == None:
             return False
-        paths = self._fortify_path(source, target)
-        print("paths=", paths)
-        for path in paths:
-            if self._can_fortify(path, source, target):
-                return True
-        return False
+        return True
+        # paths=self._all_paths(source, target)
+        #
+        # print("paths=", paths)
+        # for path in paths:
+        #     print("player_id=", player_id, "path=", path, "self.owner(path)=", self.owner(path))
+        #     if self.owner(path) != player_id:
+        #         return False
+        # return True
 
 
 
@@ -363,6 +397,38 @@ class Board(object):
             [int]: a list of territory_ids representing the valid attack path; if no path exists, then it returns None instead
         '''
 
+        # key is territory and value is path
+        territories={}
+        territories[source]=[source]
+        pq = PriorityQueue()
+        pq.put(source, 0)
+        visited=[source]
+
+        while pq:
+            cur_ter=pq.get()
+            # print("cur_ter=", cur_ter)
+            if cur_ter==target:
+                return territories[cur_ter]
+            self.neighbors(cur_ter)
+            territorys=list(set(self.neighbors(cur_ter)) - set(visited))
+            print("territorys=", territorys)
+            for territory in territorys:
+                copy_path=copy.deepcopy(territories[cur_ter])
+                copy_path.append(territory)
+                # priority=
+                # pq.put(territory, priority)
+
+
+
+
+    def _can_attack(self, paths, source, target):
+
+        player_id = self.owner(source)
+
+        for path in paths:
+            if path != paths[0] and self.owner(path) == player_id:
+                return False
+        return True
 
     def can_attack(self, source, target):
         '''
@@ -376,15 +442,13 @@ class Board(object):
         if self.shortest_path(source, target) == None:
             return False
 
-        else:
-            player_id = self.owner(source)
-            paths = self.shortest_path(source, target)
-
-            for path in paths:
-                print("player_id", player_id, "path=", path, "self.owner(path)=", self.owner(path), "paths=", paths)
-                if path != paths[0] and self.owner(path) == player_id:
-                    return False
-            return True
+        paths = self._all_paths(source, target)
+        print("paths=", paths)
+        for path in paths:
+            print("path1=", path)
+            if self._can_attack(path, source, target):
+                return True
+        return False
 
 
     # ======================= #
@@ -845,14 +909,11 @@ board4.set_owner(1, 0)
 
 board5 = Board([Territory(territory_id=i, player_id=i%5, armies=i%5+1) for i in range(42)])
 
-# assert not board1.can_fortify(3,10)
-# assert not board2.can_fortify(3,39)
-# assert board2.can_fortify(39,35)
-# # assert board2.can_fortify(25,38)
-# assert not board5.can_fortify(25,38)
-
-
-
+assert not board1.can_fortify(3,10)
+assert not board2.can_fortify(3,39)
+assert board2.can_fortify(39,35)
+assert board2.can_fortify(25,38)
+assert not board5.can_fortify(25,38)
 
 
 # assert board1.can_attack(3,24)
@@ -861,13 +922,22 @@ board5 = Board([Territory(territory_id=i, player_id=i%5, armies=i%5+1) for i in 
 # assert not board4.can_attack(3,24)
 # assert board5.can_attack(3,24)
 # assert board5.can_attack(30,24)
-
-# print(board5.can_attack(3,6))
 # assert board5.can_attack(3,6)
-#
 # assert not board5.can_attack(3,18)
 # assert board5.can_attack(38,1)
 # assert board5.can_attack(3,2)
 # assert not board5.can_attack(3,3)
 
 
+# print(board1.cheapest_attack_path(3,24))
+# assert board1.cost_of_attack_path(board1.cheapest_attack_path(3,24)) == 34
+# assert board2.cost_of_attack_path(board2.cheapest_attack_path(3,24)) == 34
+# assert board3.cost_of_attack_path(board3.cheapest_attack_path(3,24)) == 31
+# assert board4.cheapest_attack_path(3,24) is None
+# assert board5.cost_of_attack_path(board5.cheapest_attack_path(3,24)) == 10
+# assert board5.cost_of_attack_path(board5.cheapest_attack_path(30,24)) == 13
+# assert board5.cost_of_attack_path(board5.cheapest_attack_path(3,6)) == 17
+# assert board5.cheapest_attack_path(3,18) is None
+# assert board5.cost_of_attack_path(board5.cheapest_attack_path(38,1)) == 16
+# assert board5.cost_of_attack_path(board5.cheapest_attack_path(3,2)) == 13
+# assert board5.cheapest_attack_path(3,3) is None
