@@ -12,11 +12,7 @@ board1.set_armies(4,500)
 board1.set_armies(34,500)
 board1.set_armies(39,500)
 board1.set_armies(35,500)
-
-
-# board1.plot_board(path=path)
-
-
+# board2.plot_board(path=[3, 28, 37, 5, 40, 27, 13, 14, 30, 25, 39, 24])
 
 board2 = copy.deepcopy(board1)
 board2.set_owner(34, 0)
@@ -25,9 +21,8 @@ board2.set_owner(35, 0)
 board2.set_armies(35,1)
 board2.set_owner(39, 0)
 board2.set_armies(39,1)
-# board2.plot_board()
-path=[39, 25, 35]
-board2.plot_board(path=[25, 34, 21, 15, 31, 16, 38])
+
+board2.plot_board(path=[3, 28, 37, 5, 40, 27, 13, 14, 30, 25, 39, 24])
 
 
 
